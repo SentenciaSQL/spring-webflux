@@ -3,6 +3,8 @@ package com.afriasdev.springboot.reactor.app;
 import com.afriasdev.springboot.reactor.app.models.Comentarios;
 import com.afriasdev.springboot.reactor.app.models.Usuario;
 import com.afriasdev.springboot.reactor.app.models.UsuarioComentarios;
+import org.reactivestreams.Subscriber;
+import org.reactivestreams.Subscription;
 import org.slf4j.Logger;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
@@ -13,6 +15,9 @@ import reactor.core.publisher.Mono;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Timer;
+import java.util.TimerTask;
+import java.util.concurrent.CountDownLatch;
 
 @SpringBootApplication
 public class SpringBootReactorApplication implements CommandLineRunner {
@@ -34,7 +39,11 @@ public class SpringBootReactorApplication implements CommandLineRunner {
         //ejemploUsuarioCometriosZipWith();
         //ejemploUsuarioCometriosZipWithForma2();
         //ejemploZipWithRangos();
-        ejemploInterval();
+        //ejemploInterval();
+        //ejemploDealyElements();
+        //ejemploIntervalInfinito();
+        //ejemploIntervalDesdeCreate();
+        ejemploContraPresion();
     }
 
     private Usuario parseUsuario(String nombreCompleto) {
@@ -48,6 +57,92 @@ public class SpringBootReactorApplication implements CommandLineRunner {
     public Usuario crearUsuario() {
         log.info("Creando usuario...");
         return new Usuario("Andres", "Frias");
+    }
+
+    public void ejemploContraPresion() {
+        Flux.range(1, 10)
+                .log()
+                .subscribe(new Subscriber<Integer>() {
+
+                    private Subscription subscription;
+                    private Integer limite = 2;
+                    private Integer consumido = 0;
+
+                    @Override
+                    public void onSubscribe(Subscription subscription) {
+                        this.subscription = subscription;
+                        this.subscription.request(limite);
+                    }
+
+                    @Override
+                    public void onNext(Integer integer) {
+                        log.info(integer.toString());
+                        consumido++;
+                        if (consumido == limite) {
+                            consumido = 0;
+                            this.subscription.request(limite);
+                        }
+                    }
+
+                    @Override
+                    public void onError(Throwable throwable) {
+
+                    }
+
+                    @Override
+                    public void onComplete() {
+
+                    }
+                });
+    }
+
+    public void ejemploIntervalDesdeCreate() {
+        Flux.create(emitter -> {
+            Timer timer = new Timer();
+            timer.schedule(new TimerTask() {
+                private Integer contador = 0;
+
+                @Override
+                public void run() {
+                    emitter.next(contador++);
+                }
+
+            }, 1000, 1000);
+        }).doOnNext(next -> log.info(next.toString()))
+                .take(10)
+                .doOnComplete(() -> log.info("Hemos terminado el flujo"))
+                .blockLast();
+    }
+
+    public void ejemploIntervalInfinito() throws InterruptedException {
+        CountDownLatch latch = new CountDownLatch(1);
+
+        Flux.interval(Duration.ofSeconds(1))
+                .doOnTerminate(() -> latch.countDown())
+                .flatMap(i -> {
+                    if (i >= 5) {
+                        return Flux.error(new InterruptedException("Solo hasta 5"));
+                    }
+                    return Flux.just(i);
+                })
+                .map(i -> "Hola " + i)
+                .doOnNext(s -> log.info(s))
+                .subscribe();
+
+        latch.await();
+
+
+    }
+
+    public void ejemploDealyElements() throws InterruptedException {
+        Flux<Integer> rango = Flux.range(1, 12)
+                .delayElements(Duration.ofSeconds(1))
+                .doOnNext(i -> log.info(i.toString()));
+
+        rango.subscribe();
+
+        Thread.sleep(13000);
+
     }
 
     public void ejemploInterval() {
