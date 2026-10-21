@@ -1,0 +1,26 @@
+<!doctype html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title th:text="${titulo}">Listado de productos</title>
+  </head>
+  <body>
+    <h1 th:text="${titulo}">Listado de productos</h1>
+
+    <a th:href="@{/listar}">Volver al listado</a>
+
+    <form th:action="@{/form}" th:object="${producto}" method="post">
+      <label for="nombre">Nombre:</label>
+      <input type="text" id="nombre" th:field="*{nombre}" />
+      <br />
+      <label for="precio">Precio:</label>
+      <input type="number" id="precio" th:field="*{precio}" />
+      <br />
+      <label for="createAt">Fecha:</label>
+      <input type="date" id="createAt" th:field="*{createAt}" />
+      <br />
+      <button type="submit">Guardar</button>
+    </form>
+  </body>
+</html>
